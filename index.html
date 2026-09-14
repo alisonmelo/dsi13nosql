@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis - Prática Rápida (30 Minutos)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        gray: { 900: '#0f172a', 800: '#1e293b', 700: '#334155' },
+                        neon: { blue: '#38bdf8', pink: '#ec4899', green: '#34d399', purple: '#a855f7' }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { background-color: #020617; color: #f8fafc; }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(51, 65, 85, 0.8);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .console-text { text-shadow: 0 0 5px rgba(56, 189, 248, 0.5); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="h-screen flex flex-col font-sans overflow-hidden">
+
+    <header class="bg-gray-900 border-b border-gray-700 p-4 flex justify-between items-center shadow-lg z-10">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-bolt text-neon-green text-2xl"></i>
+            <div>
+                <h1 class="text-xl font-bold tracking-wider">Redis <span class="text-neon-blue">QuickStart</span></h1>
+                <p class="text-xs text-gray-400">Turma DS/13-N - Prática Rápida</p>
+            </div>
+        </div>
+        <div class="flex gap-4 text-sm font-mono text-gray-400">
+            <span class="flex items-center gap-2" id="connection-status">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Desconectado
+            </span>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden p-4 gap-4">
+        
+        <!-- Lado Esquerdo: Formulários e Passos -->
+        <div class="w-1/2 flex flex-col gap-4 overflow-y-auto pr-2">
+            
+            <section class="glass-panel rounded-xl p-6 relative overflow-hidden flex-1">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neon-blue to-neon-purple"></div>
+                <h2 class="text-2xl font-bold mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-list-check text-neon-blue mr-2"></i>Passo a Passo</h2>
+
+                <div class="space-y-6">
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-neon-blue transition-colors duration-300">
+                        <h3 class="text-lg font-bold text-white mb-2"><span class="text-neon-blue">1.</span> Conectar ao Servidor Node.js</h3>
+                        <p class="text-sm text-gray-400 mb-3">Primeiro, precisamos garantir que nosso frontend consegue falar com o backend que tem o Redis.</p>
+                        <button onclick="checkConnection()" id="btn-connect" class="bg-gray-700 hover:bg-gray-600 border border-gray-500 text-white font-bold px-4 py-2 rounded transition-colors w-full sm:w-auto">
+                            <i class="fa-solid fa-plug mr-2"></i> Testar Conexão com API
+                        </button>
+                    </div>
+
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 opacity-50 pointer-events-none transition-opacity duration-300" id="step-2-container">
+                        <h3 class="text-lg font-bold text-white mb-2"><span class="text-neon-purple">2.</span> Gravar um Dado (SET)</h3>
+                        <p class="text-sm text-gray-400 mb-3">Vamos enviar um comando SET para o servidor guardar uma informação na memória RAM.</p>
+                        <div class="flex flex-col gap-3">
+                            <input type="text" id="set-key" placeholder="Chave (Ex: aluno:1)" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-neon-purple text-white font-mono text-sm">
+                            <div class="flex gap-2">
+                                <input type="text" id="set-value" placeholder="Valor (Ex: João da Silva)" class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-neon-purple text-white font-mono text-sm">
+                                <button onclick="setRedisData()" class="bg-neon-purple hover:bg-purple-500 text-white font-bold px-4 py-2 rounded transition-colors shadow-[0_0_10px_rgba(168,85,247,0.4)]">SET</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 opacity-50 pointer-events-none transition-opacity duration-300" id="step-3-container">
+                        <h3 class="text-lg font-bold text-white mb-2"><span class="text-neon-green">3.</span> Recuperar Dado (GET)</h3>
+                        <p class="text-sm text-gray-400 mb-3">Agora vamos pedir a informação de volta usando a mesma chave.</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="get-key" placeholder="Chave para buscar..." class="w-2/3 bg-gray-900 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-neon-green text-white font-mono text-sm">
+                            <button onclick="getRedisData()" class="bg-neon-green hover:bg-green-500 text-gray-900 font-bold px-4 py-2 rounded transition-colors flex-1 shadow-[0_0_10px_rgba(52,211,153,0.4)]">GET</button>
+                        </div>
+                        <div class="mt-4 p-3 bg-gray-900 rounded border border-dashed border-gray-600 min-h-[60px] flex items-center justify-center">
+                            <span id="frontend-result" class="font-mono text-white text-lg font-bold">Aguardando busca...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="w-1/2 flex flex-col glass-panel rounded-xl overflow-hidden relative border border-gray-600 shadow-2xl">
+            <div class="bg-[#1e1e1e] border-b border-black px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-2 text-gray-300 font-mono text-sm">
+                    <i class="fa-solid fa-terminal"></i> Console do Backend (Node.js)
+                </div>
+                <button onclick="clearConsole()" class="text-gray-500 hover:text-white transition-colors text-xs"><i class="fa-solid fa-trash-can"></i> Limpar</button>
+            </div>
+            <div id="console-output" class="flex-1 bg-[#1e1e1e] p-4 overflow-y-auto font-mono text-sm flex flex-col gap-2 font-mono">
+                <div class="text-gray-500 mb-2">// Aguardando interação...<br>// As respostas da API aparecerão aqui.</div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const API_URL = '[http://127.0.0.1:3000]'; // Altere para a URL da sua API Node se estiver rodando
+        const consoleOutput = document.getElementById('console-output');
+        let isSimulating = false; // Use true para aula se não quiser subir o Node, false para usar a API real
+        
+        // Simulação do banco de dados na memória do navegador para aula rápida
+        const miniRedisDB = {};
+
+        function logToConsole(type, message, details = '') {
+            const time = new Date().toLocaleTimeString('pt-BR', { hour12: false });
+            const logEntry = document.createElement('div');
+            logEntry.className = "flex flex-col mb-2 animate-fade-in border-b border-gray-700/50 pb-1";
+            
+            let colorClass = 'text-gray-300';
+            let icon = '';
+            
+            if (type === 'INFO') { colorClass = 'text-blue-400'; icon = 'fa-info-circle'; }
+            if (type === 'SUCCESS') { colorClass = 'text-green-400'; icon = 'fa-check'; }
+            if (type === 'ERROR') { colorClass = 'text-red-400'; icon = 'fa-times-circle'; }
+            if (type === 'COMMAND') { colorClass = 'text-yellow-400'; icon = 'fa-angle-right'; }
+
+            const mainHtml = `
+                <div>
+                    <span class="text-gray-600">[${time}]</span> 
+                    <span class="${colorClass} ml-1"><i class="fa-solid ${icon} mr-1 text-xs"></i>${message}</span>
+                </div>
+            `;
+            
+            let detailsHtml = '';
+            if (details) {
+                detailsHtml = `<div class="text-gray-400 ml-6 text-xs mt-1 whitespace-pre-wrap">${details}</div>`;
+            }
+            
+            logEntry.innerHTML = mainHtml + detailsHtml;
+            consoleOutput.appendChild(logEntry);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleOutput.innerHTML = '<div class="text-gray-500 mb-2">// Console limpo.</div>';
+        }
+
+        async function checkConnection() {
+            const btn = document.getElementById('btn-connect');
+            logToConsole('INFO', 'Iniciando teste de conexão com o servidor...');
+            
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Conectando...';
+            btn.disabled = true;
+
+            setTimeout(async () => {
+                if(isSimulating) {
+                    handleConnectionSuccess(btn);
+                } else {
+                     try {
+                        const response = await fetch(`${API_URL}/ping`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            logToConsole('SUCCESS', 'API Respondeu:', JSON.stringify(data));
+                            handleConnectionSuccess(btn);
+                        } else {
+                             throw new Error('Falha na resposta do servidor');
+                        }
+                    } catch (error) {
+                        logToConsole('ERROR', 'Erro ao conectar na API:', error.message);
+                        logToConsole('INFO', 'Você iniciou o servidor Node.js (node server.js)?');
+                        btn.innerHTML = '<i class="fa-solid fa-plug mr-2"></i> Tentar Novamente';
+                        btn.disabled = false;
+                    }
+                }
+            }, 800);
+        }
+
+        function handleConnectionSuccess(btn) {
+            logToConsole('SUCCESS', 'Conexão estabelecida com sucesso!');
+            btn.innerHTML = '<i class="fa-solid fa-check text-neon-green mr-2"></i> Conectado';
+            btn.classList.replace('bg-gray-700', 'bg-gray-800');
+            btn.classList.replace('border-gray-500', 'border-neon-green');
+            btn.classList.add('text-neon-green');
+            
+            document.getElementById('connection-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-neon-green animate-pulse"></span> Conectado à API';
+            document.getElementById('step-2-container').classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('step-3-container').classList.remove('opacity-50', 'pointer-events-none');
+        }
+
+        async function setRedisData() {
+            const key = document.getElementById('set-key').value.trim();
+            const value = document.getElementById('set-value').value.trim();
+
+            if (!key || !value) {
+                logToConsole('ERROR', 'Preencha a chave e o valor para enviar o comando SET.');
+                return;
+            }
+
+            logToConsole('COMMAND', `Enviando requisição POST para /api/redis/set`);
+            logToConsole('INFO', `Payload (Corpo):`, `{\n  "key": "${key}",\n  "value": "${value}"\n}`);
+
+            if (isSimulating) {
+                 setTimeout(() => {
+                    miniRedisDB[key] = value;
+                    logToConsole('SUCCESS', `Resposta da API:`, `{\n  "status": "success",\n  "message": "Dado salvo",\n  "redisResponse": "OK"\n}`);
+                    document.getElementById('get-key').value = key;
+                 }, 400);
+                 return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/redis/set`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, value })
+                });
+                const data = await response.json();
+                logToConsole('SUCCESS', `Resposta da API:`, JSON.stringify(data, null, 2));
+                document.getElementById('get-key').value = key; // Preenche o próximo passo
+            } catch (error) {
+                logToConsole('ERROR', 'Falha ao comunicar com a API.', error.message);
+            }
+        }
+
+        async function getRedisData() {
+            const key = document.getElementById('get-key').value.trim();
+            const resultDisplay = document.getElementById('frontend-result');
+
+            if (!key) {
+                logToConsole('ERROR', 'Preencha a chave para buscar.');
+                return;
+            }
+
+            logToConsole('COMMAND', `Enviando requisição GET para /api/redis/get/${key}`);
+            resultDisplay.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-gray-500"></i>';
+
+             if (isSimulating) {
+                 setTimeout(() => {
+                    const value = miniRedisDB[key];
+                    if(value) {
+                        logToConsole('SUCCESS', `Resposta da API:`, `{\n  "key": "${key}",\n  "value": "${value}"\n}`);
+                        resultDisplay.innerHTML = `<span class="text-neon-green">"${value}"</span>`;
+                    } else {
+                         logToConsole('INFO', `Resposta da API (Dado não encontrado):`, `{\n  "key": "${key}",\n  "value": null\n}`);
+                         resultDisplay.innerHTML = `<span class="text-gray-500 italic">null (Não encontrado)</span>`;
+                    }
+                 }, 400);
+                 return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/redis/get/${key}`);
+                const data = await response.json();
+                
+                logToConsole('INFO', `Resposta da API recebida.`, JSON.stringify(data, null, 2));
+
+                if (data.value) {
+                    resultDisplay.innerHTML = `<span class="text-neon-green">"${data.value}"</span>`;
+                } else {
+                    resultDisplay.innerHTML = `<span class="text-gray-500 italic">null (Não encontrado)</span>`;
+                }
+            } catch (error) {
+                logToConsole('ERROR', 'Falha ao buscar dado na API.', error.message);
+                resultDisplay.innerHTML = `<span class="text-red-500">Erro na requisição</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
